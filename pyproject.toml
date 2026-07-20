@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "warsaw-property-data-pipeline"
+version = "0.1.0"
+description = "ETL pipeline for Warsaw primary-market apartment prices published on dane.gov.pl"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "psycopg[binary]>=3,<4",
+]
+
+[project.scripts]
+warsaw-property-pipeline = "warsaw_property_pipeline.cli:main"
+
+[tool.setuptools.package-data]
+warsaw_property_pipeline = ["schema.sql"]
+

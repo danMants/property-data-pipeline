@@ -1,0 +1,20 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: warsaw_property
+      POSTGRES_USER: property
+      POSTGRES_PASSWORD: property
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U property -d warsaw_property"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - property_postgres_data:/var/lib/postgresql/data
+
+volumes:
+  property_postgres_data:
+
