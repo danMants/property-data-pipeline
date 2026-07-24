@@ -1,0 +1,23 @@
+{
+  "sources": [
+    {
+      "name": "moje-bielany",
+      "dataset_id": 14276,
+      "investment": "Moje Bielany",
+      "district": "Bielany"
+    },
+    {
+      "name": "nowa-mangalia",
+      "dataset_id": 18353,
+      "investment": "Nowa Mangalia",
+      "district": "Mokotów"
+    },
+    {
+      "name": "noho-warsaw",
+      "dataset_id": 22103,
+      "investment": "NOHO ONE",
+      "district": "Wola"
+    }
+  ]
+}
+
