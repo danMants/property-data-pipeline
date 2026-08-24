@@ -1,0 +1,89 @@
+name: CI
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - "**"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  python-tests:
+    name: Python ${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version:
+          - "3.11"
+          - "3.12"
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install package
+        run: python -m pip install --disable-pip-version-check --no-input -e .
+
+      - name: Compile Python sources
+        run: python -m compileall -q src tests
+
+      - name: Validate source configuration
+        run: >-
+          python -c "from warsaw_property_pipeline.config import load_sources;
+          sources = load_sources('config/sources.json');
+          print(f'Validated {len(sources)} sources')"
+
+      - name: Run unit tests
+        run: python -m unittest discover -s tests -v
+
+      - name: Verify CLI entry point
+        run: warsaw-property-pipeline --help
+
+  container-validation:
+    name: Container validation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Validate Docker Compose configuration
+        run: docker compose config --quiet
+
+      - name: Build application image
+        run: docker build --tag warsaw-property-pipeline:ci .
+
+      - name: Verify container entry point
+        run: docker run --rm warsaw-property-pipeline:ci --help
+
+  quality-gate:
+    name: Required quality gate
+    if: always()
+    needs:
+      - python-tests
+      - container-validation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Confirm all required checks passed
+        env:
+          PYTHON_TESTS_RESULT: ${{ needs.python-tests.result }}
+          CONTAINER_VALIDATION_RESULT: ${{ needs.container-validation.result }}
+        run: |
+          test "$PYTHON_TESTS_RESULT" = "success"
+          test "$CONTAINER_VALIDATION_RESULT" = "success"

@@ -1,0 +1,77 @@
+name: Deploy to Azure
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: production-deployment
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Publish image and update ETL job
+    if: vars.AZURE_DEPLOY_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Sign in to Azure with OIDC
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Sign in to Azure Container Registry
+        run: az acr login --name "$AZURE_ACR_NAME"
+        env:
+          AZURE_ACR_NAME: ${{ vars.AZURE_ACR_NAME }}
+
+      - name: Build and publish application image
+        id: image
+        env:
+          ACR_LOGIN_SERVER: ${{ vars.AZURE_ACR_LOGIN_SERVER }}
+          IMAGE_NAME: ${{ vars.AZURE_IMAGE_NAME }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          image="$ACR_LOGIN_SERVER/$IMAGE_NAME:$IMAGE_TAG"
+          latest="$ACR_LOGIN_SERVER/$IMAGE_NAME:latest"
+          docker build \
+            --label "org.opencontainers.image.revision=$IMAGE_TAG" \
+            --tag "$image" \
+            --tag "$latest" \
+            .
+          docker push "$image"
+          docker push "$latest"
+          echo "uri=$image" >> "$GITHUB_OUTPUT"
+
+      - name: Update scheduled Container Apps job
+        env:
+          AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+          AZURE_CONTAINER_APP_JOB: ${{ vars.AZURE_CONTAINER_APP_JOB }}
+          IMAGE_URI: ${{ steps.image.outputs.uri }}
+        run: |
+          az extension add --name containerapp --upgrade
+          az containerapp job update \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --name "$AZURE_CONTAINER_APP_JOB" \
+            --image "$IMAGE_URI"
+
+      - name: Start a deployment verification run
+        env:
+          AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+          AZURE_CONTAINER_APP_JOB: ${{ vars.AZURE_CONTAINER_APP_JOB }}
+        run: >-
+          az containerapp job start
+          --resource-group "$AZURE_RESOURCE_GROUP"
+          --name "$AZURE_CONTAINER_APP_JOB"

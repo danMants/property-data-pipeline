@@ -1,5 +1,7 @@
 # Warsaw Property Data Pipeline
 
+[![CI](https://github.com/danMants/property-data-pipeline/actions/workflows/ci.yml/badge.svg)](https://github.com/danMants/property-data-pipeline/actions/workflows/ci.yml)
+
 An ETL pipeline that collects public apartment-price CSV files from Poland's
 official [dane.gov.pl](https://dane.gov.pl/) portal, normalizes data published by
 different developers, stores daily price snapshots in PostgreSQL, and exposes
@@ -134,6 +136,19 @@ The unit tests require no database or network access:
 ```bash
 PYTHONPATH=src python3.11 -m unittest discover -s tests -v
 ```
+
+## Continuous integration and delivery
+
+Every push and pull request runs the unit tests on Python 3.11 and 3.12,
+validates the source configuration and CLI, and builds the application
+container. The `Required quality gate` job summarizes these checks and is the
+status check required before a pull request can merge into `main`.
+
+After a merge into `main`, a separate workflow can publish the image and update
+the scheduled ETL job in Azure. Cloud deployment remains disabled until the
+Azure resources and GitHub OIDC trust are configured. See
+[`docs/azure-deployment.md`](docs/azure-deployment.md) for the activation
+checklist.
 
 ## Next iterations
 
